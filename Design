@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insulated Cup Designer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1a202c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 1rem;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+        }
+        canvas {
+            border: 2px solid #e2e8f0;
+            cursor: crosshair;
+            touch-action: none;
+            /* Ensure the canvas is the primary target for all pointer events */
+            pointer-events: auto;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl sm:text-4xl font-bold text-center mb-6 text-gray-800">My Insulated Cup Prototype</h1>
+        <p class="text-center text-gray-600 mb-6">Draw your cup, add materials, and explain why they are great for keeping things hot!</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <!-- Drawing and Labels Section -->
+            <div class="flex flex-col items-center">
+                <div class="relative w-full">
+                    <canvas id="cupCanvas" class="w-full aspect-video rounded-lg"></canvas>
+                    <div id="labelsContainer" class="absolute inset-0 pointer-events-none"></div>
+                </div>
+
+                <!-- Drawing Tools -->
+                <div class="flex flex-wrap justify-center items-center gap-2 mt-4">
+                    <button id="drawBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-200 shadow-md">Draw</button>
+                    <button id="labelBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors duration-200 shadow-md">Add Text Label</button>
+                    <button id="eraseBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-yellow-500 hover:bg-yellow-600 transition-colors duration-200 shadow-md">Erase</button>
+                    <button id="clearBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors duration-200 shadow-md">Clear All</button>
+                </div>
+
+                <div class="flex flex-wrap justify-center items-center gap-2 mt-4">
+                    <div class="color-picker-container flex items-center gap-2">
+                        <div id="color-red" class="w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:border-blue-500 transition-all duration-200" style="background-color: #e53e3e;"></div>
+                        <div id="color-blue" class="w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:border-blue-500 transition-all duration-200" style="background-color: #3182ce;"></div>
+                        <div id="color-green" class="w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:border-blue-500 transition-all duration-200" style="background-color: #38a169;"></div>
+                        <div id="color-purple" class="w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:border-blue-500 transition-all duration-200" style="background-color: #805ad5;"></div>
+                        <div id="color-orange" class="w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:border-blue-500 transition-all duration-200" style="background-color: #dd6b20;"></div>
+                        <div id="color-black" class="w-8 h-8 rounded-full border-2 border-transparent cursor-pointer hover:border-blue-500 transition-all duration-200" style="background-color: #1a202c;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explanation Section -->
+            <div class="flex flex-col">
+                <label for="explanation" class="text-lg font-semibold mb-2 text-gray-800">Explain Your Design</label>
+                <textarea id="explanation" class="w-full h-48 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Explain your design here. What materials are you using and why?"></textarea>
+                
+                <!-- Save/Load Section -->
+                <div class="flex flex-col sm:flex-row gap-2 mt-4">
+                    <button id="saveBtn" class="w-full sm:w-1/3 px-4 py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors duration-200 shadow-lg">Save My Design</button>
+                    <button id="shareBtn" class="w-full sm:w-1/3 px-4 py-3 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200 shadow-lg">Share Design</button>
+                    <button id="loadBtn" class="w-full sm:w-1/3 px-4 py-3 rounded-xl font-bold text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-200 shadow-lg">Load My Design</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Modals -->
+    <div id="alertModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="text-xl font-bold mb-2"></h3>
+            <p id="modalMessage" class="mb-4"></p>
+            <button id="closeModalBtn" class="px-6 py-2 rounded-full font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-200">OK</button>
+        </div>
+    </div>
+
+    <div id="labelModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold mb-2">Add a Text Label</h3>
+            <p class="mb-2">Enter the material and its purpose.</p>
+            <input type="text" id="materialInput" placeholder="Material Name" class="w-full p-2 mb-2 border rounded-md">
+            <input type="text" id="purposeInput" placeholder="Purpose" class="w-full p-2 mb-4 border rounded-md">
+            <div class="flex justify-end gap-2">
+                <button id="cancelLabelBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-gray-400 hover:bg-gray-500 transition-colors duration-200">Cancel</button>
+                <button id="addLabelOkBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors duration-200">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold mb-2">Share Your Design</h3>
+            <p class="mb-2">Copy this link to share your design with others:</p>
+            <div class="flex items-center gap-2 mb-4">
+                <input type="text" id="shareLink" class="w-full p-2 border rounded-md" readonly>
+                <button id="copyLinkBtn" class="px-4 py-2 rounded-full font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200">Copy</button>
+            </div>
+            <button id="closeShareModalBtn" class="px-6 py-2 rounded-full font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-200">Done</button>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        setLogLevel('debug');
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // --- UI Elements ---
+        const canvas = document.getElementById('cupCanvas');
+        const ctx = canvas.getContext('2d');
+        const explanationTextarea = document.getElementById('explanation');
+        const labelsContainer = document.getElementById('labelsContainer');
+        const saveBtn = document.getElementById('saveBtn');
+        const shareBtn = document.getElementById('shareBtn');
+        const loadBtn = document.getElementById('loadBtn');
+        const drawBtn = document.getElementById('drawBtn');
+        const labelBtn = document.getElementById('labelBtn');
+        const eraseBtn = document.getElementById('eraseBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const colorPalette = document.querySelectorAll('.color-picker-container div');
+        
+        // Modal elements
+        const alertModal = document.getElementById('alertModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const labelModal = document.getElementById('labelModal');
+        const materialInput = document.getElementById('materialInput');
+        const purposeInput = document.getElementById('purposeInput');
+        const addLabelOkBtn = document.getElementById('addLabelOkBtn');
+        const cancelLabelBtn = document.getElementById('cancelLabelBtn');
+        const shareModal = document.getElementById('shareModal');
+        const shareLinkInput = document.getElementById('shareLink');
+        const copyLinkBtn = document.getElementById('copyLinkBtn');
+        const closeShareModalBtn = document.getElementById('closeShareModalBtn');
+
+        // --- State Variables ---
+        let userId = null;
+        let activeTool = 'none';
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let labels = [];
+        let drawingColor = '#1a202c';
+        let labelPos = null;
+        let currentDesignId = null;
+        
+        // --- Firebase Auth ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                // Check if a design ID is in the URL to load a shared design
+                const urlParams = new URLSearchParams(window.location.search);
+                const sharedId = urlParams.get('id');
+                if (sharedId) {
+                    currentDesignId = sharedId;
+                    await loadDesign(sharedId, true);
+                } else {
+                    await loadDesign(userId);
+                }
+            } else {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Firebase auth error:", error);
+                    await signInAnonymously(auth);
+                }
+            }
+        });
+
+        // --- Custom Modal Functions ---
+        const showModal = (title, message) => {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            alertModal.style.display = 'flex';
+        };
+
+        const closeModal = () => {
+            alertModal.style.display = 'none';
+        };
+        closeModalBtn.addEventListener('click', closeModal);
+
+        const showShareModal = (designId) => {
+            const shareableUrl = `${window.location.origin}${window.location.pathname}?id=${designId}`;
+            shareLinkInput.value = shareableUrl;
+            shareModal.style.display = 'flex';
+        };
+
+        closeShareModalBtn.addEventListener('click', () => {
+            shareModal.style.display = 'none';
+        });
+
+        copyLinkBtn.addEventListener('click', () => {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            showModal('Link Copied!', 'The shareable link has been copied to your clipboard.');
+            shareModal.style.display = 'none';
+        });
+
+        // --- Canvas Setup ---
+        const setupCanvas = () => {
+            const rect = canvas.parentNode.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = canvas.width * 0.75; 
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = drawingColor;
+        };
+
+        // --- Drawing Logic ---
+        const getMousePos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+            if (e.touches) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            return { x, y };
+        };
+
+        const draw = (e) => {
+            if (!isDrawing) return;
+            const pos = getMousePos(e);
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            
+            lastX = pos.x;
+            lastY = pos.y;
+        };
+
+        const startDrawing = (e) => {
+            e.preventDefault();
+            if (activeTool === 'draw' || activeTool === 'erase') {
+                isDrawing = true;
+                const pos = getMousePos(e);
+                lastX = pos.x;
+                lastY = pos.y;
+                ctx.strokeStyle = activeTool === 'erase' ? 'white' : drawingColor;
+                ctx.lineWidth = activeTool === 'erase' ? 20 : 5;
+            }
+        };
+
+        const stopDrawing = () => {
+            isDrawing = false;
+        };
+
+        // --- Tool Selection Logic ---
+        const setActiveTool = (tool) => {
+            drawBtn.classList.remove('bg-blue-600');
+            labelBtn.classList.remove('bg-green-600');
+            eraseBtn.classList.remove('bg-yellow-600');
+            activeTool = tool;
+
+            if (tool === 'draw') {
+                drawBtn.classList.add('bg-blue-600');
+            } else if (tool === 'label') {
+                labelBtn.classList.add('bg-green-600');
+            } else if (tool === 'erase') {
+                eraseBtn.classList.add('bg-yellow-600');
+            }
+        };
+
+        // --- Labeling Logic ---
+        const handleLabelClick = (e) => {
+            if (activeTool !== 'label') return;
+            labelPos = getMousePos(e);
+            labelModal.style.display = 'flex';
+            materialInput.focus();
+        };
+
+        const handleAddLabel = () => {
+            const material = materialInput.value.trim();
+            const purpose = purposeInput.value.trim();
+            if (material && purpose) {
+                labels.push({ x: labelPos.x, y: labelPos.y, material: material, purpose: purpose });
+                renderLabels();
+                labelModal.style.display = 'none';
+                materialInput.value = '';
+                purposeInput.value = '';
+            } else {
+                showModal('Error', 'Both fields are required.');
+            }
+        };
+
+        const handleCancelLabel = () => {
+            labelModal.style.display = 'none';
+            materialInput.value = '';
+            purposeInput.value = '';
+        };
+        
+        // --- Rendering Labels ---
+        const renderLabels = () => {
+            labelsContainer.innerHTML = '';
+            labels.forEach(label => {
+                const labelElement = document.createElement('div');
+                labelElement.classList.add('absolute', 'p-1', 'bg-white', 'rounded-md', 'shadow-md', 'text-sm', 'border', 'border-gray-200');
+                labelElement.style.left = `${(label.x / canvas.width) * 100}%`;
+                labelElement.style.top = `${(label.y / canvas.height) * 100}%`;
+                labelElement.innerHTML = `<span class="font-bold">${label.material}:</span> ${label.purpose}`;
+                labelsContainer.appendChild(labelElement);
+            });
+        };
+
+        // --- Save/Load Firestore ---
+        const getCanvasData = () => canvas.toDataURL();
+        const setCanvasData = (dataUrl) => {
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = dataUrl;
+        };
+
+        const saveDesign = async () => {
+            if (!userId) {
+                showModal('Error', 'User not authenticated. Please wait a moment and try again.');
+                return;
+            }
+            try {
+                // Generate a unique ID for the public design
+                currentDesignId = crypto.randomUUID();
+                const designData = {
+                    canvasData: getCanvasData(),
+                    labels: labels,
+                    explanation: explanationTextarea.value
+                };
+                // Save to a public collection
+                const designDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'insulated_cups', currentDesignId);
+                await setDoc(designDocRef, designData);
+                showModal('Design Saved!', 'Your cup design has been saved successfully!');
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                showModal('Error', 'Could not save the design. Please check the console for details.');
+            }
+        };
+
+        const loadDesign = async (docId, isShared = false) => {
+            if (!userId) {
+                showModal('Error', 'User not authenticated. Please wait a moment and try again.');
+                return;
+            }
+            try {
+                const docPath = isShared ? 
+                    `artifacts/${appId}/public/data/insulated_cups/${docId}` :
+                    `artifacts/${appId}/users/${userId}/insulated_cups/my_design`;
+                
+                const designDocRef = doc(db, ...docPath.split('/'));
+                const docSnap = await getDoc(designDocRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    setCanvasData(data.canvasData);
+                    labels = data.labels || [];
+                    renderLabels();
+                    explanationTextarea.value = data.explanation || '';
+                    showModal('Design Loaded!', 'Your saved design has been loaded.');
+                } else {
+                    if (!isShared) {
+                        showModal('Welcome!', 'Start designing your insulated cup!');
+                    } else {
+                        showModal('Error', 'The shared design could not be found.');
+                    }
+                }
+            } catch (e) {
+                console.error("Error loading document: ", e);
+                showModal('Error', 'Could not load the design. Please check the console for details.');
+            }
+        };
+
+        const shareDesign = () => {
+            if (currentDesignId) {
+                showShareModal(currentDesignId);
+            } else {
+                showModal('Design Not Saved', 'Please save your design first to get a shareable link.');
+            }
+        };
+
+        // --- Event Listener Initialization ---
+        const initListeners = () => {
+            window.addEventListener('resize', setupCanvas);
+            setupCanvas();
+            
+            // Drawing & Erasing events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+            
+            // Touch events
+            canvas.addEventListener('touchstart', startDrawing);
+            canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // Button click events
+            drawBtn.addEventListener('click', () => setActiveTool('draw'));
+            labelBtn.addEventListener('click', () => setActiveTool('label'));
+            eraseBtn.addEventListener('click', () => setActiveTool('erase'));
+            clearBtn.addEventListener('click', () => {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                labels = [];
+                renderLabels();
+                showModal('Canvas Cleared', 'Your design has been cleared.');
+            });
+            saveBtn.addEventListener('click', saveDesign);
+            shareBtn.addEventListener('click', shareDesign);
+            loadBtn.addEventListener('click', () => loadDesign(userId));
+            
+            // Color palette clicks
+            colorPalette.forEach(colorDiv => {
+                colorDiv.addEventListener('click', () => {
+                    const color = colorDiv.style.backgroundColor;
+                    drawingColor = color;
+                    ctx.strokeStyle = drawingColor;
+                    document.querySelectorAll('.color-picker-container div').forEach(div => div.style.border = '2px solid transparent');
+                    colorDiv.style.border = '2px solid #3182ce';
+                });
+            });
+
+            // Modal and Label events
+            canvas.addEventListener('click', handleLabelClick);
+            addLabelOkBtn.addEventListener('click', handleAddLabel);
+            cancelLabelBtn.addEventListener('click', handleCancelLabel);
+        };
+
+        window.onload = initListeners;
+    </script>
+</body>
+</html>
